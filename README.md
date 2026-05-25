@@ -126,7 +126,8 @@ Memory contention is **not** baked into the core; hosts add wait states through 
 
 - This early release covers the public API surface, register/flag model, and a working subset of the instruction set sufficient for the bundled tests. The remaining opcodes follow the same dispatch shape and are filled in incrementally.
 - `MEMPTR/WZ` is tracked but not yet wired into every flag side-effect.
-- No external validation ROMs (e.g. ZEX, fusetest) are integrated yet.
+- ZEXDOC is integrated in the test suite; broader external suites such as ZEXALL
+  and fusetest are not integrated yet.
 
 ## References
 

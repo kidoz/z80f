@@ -37,9 +37,9 @@ TEST_CASE("ZEXDOC compliance test", "[zexdoc][compliance]") {
     Z80 cpu(bus);
 
     // Read zexdoc.com into memory at 0x0100
-    std::ifstream file("tests/zexdoc.com", std::ios::binary | std::ios::ate);
+    std::ifstream file("tests/roms/zexdoc.com", std::ios::binary | std::ios::ate);
     if (!file) {
-        SKIP("zexdoc.com not found, skipping compliance test");
+        SKIP("tests/roms/zexdoc.com not found, skipping compliance test");
     }
     const std::streamsize size = file.tellg();
     if (size > (0x10000 - 0x0100)) {
