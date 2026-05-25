@@ -7,7 +7,7 @@
 
 namespace z80f {
 
-Z80::Z80(Bus& bus) : bus_(bus) {
+Z80::Z80(Bus& bus) : bus_(&bus) {
     reset();
 }
 
@@ -40,19 +40,19 @@ void Z80::inc_r() {
 }
 
 std::uint8_t Z80::read8(std::uint16_t addr) {
-    cycles_ += bus_.on_m_cycle(addr, 3);
-    return bus_.read_memory(addr);
+    cycles_ += bus_->on_m_cycle(addr, 3);
+    return bus_->read_memory(addr);
 }
 
 void Z80::write8(std::uint16_t addr, std::uint8_t value) {
-    cycles_ += bus_.on_m_cycle(addr, 3);
-    bus_.write_memory(addr, value);
+    cycles_ += bus_->on_m_cycle(addr, 3);
+    bus_->write_memory(addr, value);
 }
 
 std::uint8_t Z80::fetch_opcode() {
     std::uint16_t pc = regs_.pc;
-    cycles_ += bus_.on_m_cycle(pc, 4);
-    std::uint8_t op = bus_.read_memory(pc);
+    cycles_ += bus_->on_m_cycle(pc, 4);
+    std::uint8_t op = bus_->read_memory(pc);
     regs_.pc = static_cast<std::uint16_t>(pc + 1);
     inc_r();
     return op;
@@ -71,13 +71,13 @@ std::uint16_t Z80::fetch_immediate16() {
 }
 
 std::uint8_t Z80::io_in(std::uint16_t port) {
-    cycles_ += bus_.on_m_cycle(port, 4);
-    return bus_.read_io(port);
+    cycles_ += bus_->on_m_cycle(port, 4);
+    return bus_->read_io(port);
 }
 
 void Z80::io_out(std::uint16_t port, std::uint8_t value) {
-    cycles_ += bus_.on_m_cycle(port, 4);
-    bus_.write_io(port, value);
+    cycles_ += bus_->on_m_cycle(port, 4);
+    bus_->write_io(port, value);
 }
 
 void Z80::push16(std::uint16_t value) {
@@ -115,7 +115,7 @@ bool Z80::handle_nmi() {
     regs_.iff2 = regs_.iff1;
     regs_.iff1 = false;
     inc_r();
-    cycles_ += bus_.on_m_cycle(regs_.pc, 5);
+    cycles_ += bus_->on_m_cycle(regs_.pc, 5);
     push16(regs_.pc);
     regs_.pc = 0x0066;
     regs_.wz = 0x0066;
@@ -131,8 +131,8 @@ bool Z80::handle_int() {
     regs_.iff1 = false;
     regs_.iff2 = false;
     inc_r();
-    cycles_ += bus_.on_m_cycle(regs_.pc, 7);
-    std::uint8_t databus = bus_.acknowledge_interrupt();
+    cycles_ += bus_->on_m_cycle(regs_.pc, 7);
+    std::uint8_t databus = bus_->acknowledge_interrupt();
     push16(regs_.pc);
     int t = 0;
     switch (regs_.im) {
@@ -195,7 +195,7 @@ int Z80::step() {
 
     if (regs_.halted) {
         // Single 4-T NOP-like cycle until interrupted.
-        cycles_ += bus_.on_m_cycle(regs_.pc, 4);
+        cycles_ += bus_->on_m_cycle(regs_.pc, 4);
         inc_r();
         cycles_ += 4;
         // EI right before HALT still clears the one-instruction delay.

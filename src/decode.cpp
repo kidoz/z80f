@@ -1191,7 +1191,7 @@ int Z80::dispatch_index(std::uint16_t& idx_ref, bool is_ix_ref) {
         auto d = static_cast<std::int8_t>(fetch_immediate());
         auto a = static_cast<std::uint16_t>(idx + d);
         regs_.wz = a;
-        cycles_ += bus_.on_m_cycle(idx, 5);
+        cycles_ += bus_->on_m_cycle(idx, 5);
         return a;
     };
 
@@ -1335,7 +1335,7 @@ int Z80::dispatch_index(std::uint16_t& idx_ref, bool is_ix_ref) {
         std::uint8_t n = fetch_immediate();
         auto a = static_cast<std::uint16_t>(idx + d);
         regs_.wz = a;
-        cycles_ += bus_.on_m_cycle(idx, 2);
+        cycles_ += bus_->on_m_cycle(idx, 2);
         write8(a, n);
         t += 15;
         break;
@@ -1692,7 +1692,7 @@ int Z80::dispatch_index_cb(std::uint16_t& idx) {
     std::uint8_t op = fetch_immediate();  // not a opcode fetch — does NOT inc R
     auto a = static_cast<std::uint16_t>(idx + d);
     regs_.wz = a;
-    cycles_ += bus_.on_m_cycle(idx, 2);
+    cycles_ += bus_->on_m_cycle(idx, 2);
 
     int const reg = op & 7;
     int const kind = (op >> 6) & 3;

@@ -58,8 +58,8 @@ private:
     int dispatch_unprefixed(std::uint8_t op);
     int dispatch_cb();
     int dispatch_ed();
-    int dispatch_index(std::uint16_t& index_reg, bool is_ix);
-    int dispatch_index_cb(std::uint16_t& index_reg);
+    int dispatch_index(std::uint16_t& idx_ref, bool is_ix);
+    int dispatch_index_cb(std::uint16_t& idx);
 
     // Flag helpers
     void alu_add(std::uint8_t value, bool with_carry);
@@ -104,7 +104,7 @@ private:
     void rst(std::uint16_t target);
 
     // State
-    Bus& bus_;
+    Bus* bus_;
     Registers regs_{};
     std::uint64_t cycles_ = 0;
     bool nmi_line_ = false;

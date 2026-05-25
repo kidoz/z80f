@@ -7,7 +7,6 @@
 
 namespace z80f {
 
-using detail::parity_of;
 using detail::sz53_of;
 using detail::sz53p_of;
 
@@ -414,7 +413,7 @@ std::uint8_t Z80::cb_res(std::uint8_t bit, std::uint8_t v) {
 void Z80::block_ld(int delta, bool repeat) {
     std::uint8_t byte = read8(regs_.hl());
     write8(regs_.de(), byte);
-    cycles_ += bus_.on_m_cycle(regs_.de(), 2);  // 2 extra T-states
+    cycles_ += bus_->on_m_cycle(regs_.de(), 2);  // 2 extra T-states
     regs_.set_hl(static_cast<std::uint16_t>(regs_.hl() + delta));
     regs_.set_de(static_cast<std::uint16_t>(regs_.de() + delta));
     regs_.set_bc(static_cast<std::uint16_t>(regs_.bc() - 1));
@@ -432,14 +431,14 @@ void Z80::block_ld(int delta, bool repeat) {
     regs_.flags.bits = f;
     if (repeat && regs_.bc() != 0) {
         regs_.pc = static_cast<std::uint16_t>(regs_.pc - 2);
-        cycles_ += bus_.on_m_cycle(regs_.de(), 5);
+        cycles_ += bus_->on_m_cycle(regs_.de(), 5);
         cycles_ += 5;
     }
 }
 
 void Z80::block_cp(int delta, bool repeat) {
     std::uint8_t byte = read8(regs_.hl());
-    cycles_ += bus_.on_m_cycle(regs_.hl(), 5);
+    cycles_ += bus_->on_m_cycle(regs_.hl(), 5);
     std::uint16_t a = regs_.a;
     std::uint16_t diff = a - byte;
     auto result = static_cast<std::uint8_t>(diff & 0xFF);
@@ -470,7 +469,7 @@ void Z80::block_cp(int delta, bool repeat) {
     regs_.flags.bits = f;
     if (repeat && regs_.bc() != 0 && result != 0) {
         regs_.pc = static_cast<std::uint16_t>(regs_.pc - 2);
-        cycles_ += bus_.on_m_cycle(regs_.hl(), 5);
+        cycles_ += bus_->on_m_cycle(regs_.hl(), 5);
         cycles_ += 5;
     }
 }
@@ -487,7 +486,7 @@ void Z80::block_in(int delta, bool repeat) {
     regs_.flags.bits = f;
     if (repeat && regs_.b != 0) {
         regs_.pc = static_cast<std::uint16_t>(regs_.pc - 2);
-        cycles_ += bus_.on_m_cycle(regs_.hl(), 5);
+        cycles_ += bus_->on_m_cycle(regs_.hl(), 5);
         cycles_ += 5;
     }
 }
@@ -504,7 +503,7 @@ void Z80::block_out(int delta, bool repeat) {
     regs_.flags.bits = f;
     if (repeat && regs_.b != 0) {
         regs_.pc = static_cast<std::uint16_t>(regs_.pc - 2);
-        cycles_ += bus_.on_m_cycle(regs_.bc(), 5);
+        cycles_ += bus_->on_m_cycle(regs_.bc(), 5);
         cycles_ += 5;
     }
 }
