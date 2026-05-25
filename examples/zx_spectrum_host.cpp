@@ -35,17 +35,17 @@ public:
     std::uint8_t read_io(std::uint16_t port) override {
         // ULA decodes by bit 0 = 0 (even ports). Keyboard rows are read from
         // the high byte. Returning 0xFF means "no keys pressed".
-        if ((port & 1) == 0) {
+        if ((port & 1U) == 0) {
             return 0xFF;
         }
         return 0xFF;  // open bus
     }
 
     void write_io(std::uint16_t port, std::uint8_t value) override {
-        if ((port & 1) == 0) {
+        if ((port & 1U) == 0) {
             // Bit 0..2: border colour. Bit 3: MIC out. Bit 4: speaker.
-            border = static_cast<std::uint8_t>(value & 0x07);
-            last_speaker = static_cast<std::uint8_t>((value >> 4) & 1);
+            border = static_cast<std::uint8_t>(value & 0x07U);
+            last_speaker = static_cast<std::uint8_t>((value >> 4U) & 1U);
         }
     }
 

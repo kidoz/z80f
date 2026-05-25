@@ -74,7 +74,7 @@ public:
             // Bank register: each write shifts in one bit of the 9-bit window
             // selector. Here we just OR the value as a placeholder.
             bank_register = static_cast<std::uint16_t>(
-                (bank_register >> 1) | (static_cast<std::uint16_t>(value & 1) << 8));
+                (bank_register >> 1U) | (static_cast<std::uint16_t>(value & 1U) << 8U));
             return;
         }
     }

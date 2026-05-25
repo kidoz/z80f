@@ -1,15 +1,17 @@
 #include <catch2/catch_test_macros.hpp>
+#include <z80f/bus.hpp>
+#include <z80f/snapshot.hpp>
 #include <z80f/z80.hpp>
 
 #include <array>
 #include <cstdint>
-#include <cstdio>
 #include <fstream>
 #include <iostream>
 #include <string>
 
 using z80f::Z80;
 
+namespace {
 class ZexdocBus final : public z80f::Bus {
 public:
     std::array<std::uint8_t, 0x10000> memory{};
@@ -28,6 +30,7 @@ public:
 
     int on_m_cycle(std::uint16_t /*address*/, int /*t_states*/) override { return 0; }
 };
+}  // namespace
 
 TEST_CASE("ZEXDOC compliance test", "[zexdoc][compliance]") {
     ZexdocBus bus;
@@ -38,11 +41,12 @@ TEST_CASE("ZEXDOC compliance test", "[zexdoc][compliance]") {
     if (!file) {
         SKIP("zexdoc.com not found, skipping compliance test");
     }
-    std::streamsize size = file.tellg();
+    const std::streamsize size = file.tellg();
     if (size > (0x10000 - 0x0100)) {
         FAIL("zexdoc.com is too large and would overflow memory");
     }
     file.seekg(0, std::ios::beg);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     file.read(reinterpret_cast<char*>(bus.memory.data() + 0x0100), size);
     REQUIRE(file.gcount() == size);
 
@@ -85,6 +89,6 @@ TEST_CASE("ZEXDOC compliance test", "[zexdoc][compliance]") {
         }
     }
 
-    REQUIRE(bus.output.find("ERROR") == std::string::npos);
-    REQUIRE(bus.output.find("Tests complete") != std::string::npos);
+    REQUIRE(!bus.output.contains("ERROR"));
+    REQUIRE(bus.output.contains("Tests complete"));
 }

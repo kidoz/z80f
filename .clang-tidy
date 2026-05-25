@@ -11,6 +11,15 @@ Checks: >
   portability-*,
   readability-*,
   -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-avoid-do-while,
+  -hicpp-signed-bitwise,
+  -clang-analyzer-optin.core.EnumCastOutOfRange,
+  -readability-implicit-bool-conversion,
+  -misc-use-anonymous-namespace,
+  -misc-no-recursion,
+  -bugprone-switch-missing-default-case,
+  -hicpp-multiway-paths-covered,
+  -clang-diagnostic-c2y-extensions,
   -cppcoreguidelines-avoid-c-arrays,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
@@ -21,7 +30,6 @@ Checks: >
   -cppcoreguidelines-pro-type-vararg,
   -hicpp-avoid-c-arrays,
   -hicpp-no-array-decay,
-  -hicpp-signed-bitwise,
   -hicpp-vararg,
   -misc-non-private-member-variables-in-classes,
   -modernize-avoid-c-arrays,
@@ -29,10 +37,9 @@ Checks: >
   -modernize-use-trailing-return-type,
   -readability-identifier-length,
   -readability-magic-numbers,
-  -readability-implicit-bool-conversion,
   -readability-function-cognitive-complexity
 
-WarningsAsErrors: ''
+WarningsAsErrors: '*'
 HeaderFilterRegex: '^(include|src|tests|examples)/.*\.(h|hpp)$'
 FormatStyle: file
 CheckOptions:
