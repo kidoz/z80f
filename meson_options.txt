@@ -1,0 +1,2 @@
+option('tests', type: 'boolean', value: true, description: 'Build Catch2 test suite')
+option('examples', type: 'boolean', value: true, description: 'Build host integration examples')
