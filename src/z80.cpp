@@ -31,6 +31,7 @@ void Z80::reset() {
     regs_.ei_pending = false;
     regs_.wz = 0;
     cycles_ = 0;
+    base_cycle_counter_ = 0;
     nmi_pending_ = false;
     int_pulse_pending_ = false;
 }
@@ -235,6 +236,7 @@ Snapshot Z80::save_snapshot() const {
     s.nmi_pending = nmi_pending_;
     s.int_line = int_line_;
     s.int_pulse_pending = int_pulse_pending_;
+    s.base_cycle_counter = base_cycle_counter_;
     return s;
 }
 
@@ -245,6 +247,7 @@ void Z80::load_snapshot(const Snapshot& snapshot) {
     nmi_pending_ = snapshot.nmi_pending;
     int_line_ = snapshot.int_line;
     int_pulse_pending_ = snapshot.int_pulse_pending;
+    base_cycle_counter_ = snapshot.base_cycle_counter;
 }
 
 }  // namespace z80f

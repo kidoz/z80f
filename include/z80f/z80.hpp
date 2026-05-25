@@ -13,6 +13,11 @@ class Z80 {
 public:
     explicit Z80(Bus& bus);
 
+    // Resets the CPU to a deterministic state. Note: while Zilog power-on state
+    // (A=FF, F=FF, 16-bit regs=FFFF) is used here for consistency, some real hardware
+    // hosts (like Genesis) leave registers undefined on a soft /RESET. If you need
+    // to strictly preserve undefined/zero registers, use the Snapshot API to
+    // manipulate them directly after reset.
     void reset();
 
     // Execute one instruction. Returns the exact number of T-states consumed,
@@ -33,6 +38,10 @@ public:
     void load_snapshot(const Snapshot& snapshot);
 
     [[nodiscard]] std::uint64_t cycle_counter() const noexcept { return cycles_; }
+    [[nodiscard]] std::uint64_t cycles_since_reset() const noexcept {
+        return cycles_ - base_cycle_counter_;
+    }
+    void reset_cycle_counter() noexcept { base_cycle_counter_ = cycles_; }
 
 private:
     friend struct detail_z80_access;  // for test introspection
@@ -108,6 +117,7 @@ private:
     Bus* bus_;
     Registers regs_{};
     std::uint64_t cycles_ = 0;
+    std::uint64_t base_cycle_counter_ = 0;
     bool nmi_line_ = false;
     bool nmi_pending_ = false;
     bool int_line_ = false;

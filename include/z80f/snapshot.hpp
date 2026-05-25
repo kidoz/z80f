@@ -15,6 +15,7 @@ struct Snapshot {
     bool nmi_pending = false;
     bool int_line = false;
     bool int_pulse_pending = false;
+    std::uint64_t base_cycle_counter = 0;
 };
 
 }  // namespace z80f

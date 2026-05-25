@@ -172,3 +172,30 @@ TEST_CASE("Pulse INT vectors if accepted", "[interrupts][pulse]") {
     cpu.step();                 // NOP
     REQUIRE(cpu.registers().pc == 0x003B);
 }
+
+TEST_CASE("Cycles since reset deltas", "[timing]") {
+    TestBus bus;
+    Z80 cpu(bus);
+    cpu.reset();
+
+    // NOP is 4 cycles
+    bus.memory[0x0000] = 0x00;
+    bus.memory[0x0001] = 0x00;
+    bus.memory[0x0002] = 0x00;
+
+    cpu.step();
+    REQUIRE(cpu.cycle_counter() == 4);
+    REQUIRE(cpu.cycles_since_reset() == 4);
+
+    cpu.reset_cycle_counter();
+    REQUIRE(cpu.cycle_counter() == 4);
+    REQUIRE(cpu.cycles_since_reset() == 0);
+
+    cpu.step();
+    REQUIRE(cpu.cycle_counter() == 8);
+    REQUIRE(cpu.cycles_since_reset() == 4);
+
+    cpu.reset();
+    REQUIRE(cpu.cycle_counter() == 0);
+    REQUIRE(cpu.cycles_since_reset() == 0);
+}
