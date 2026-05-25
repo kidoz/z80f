@@ -118,3 +118,57 @@ TEST_CASE("HALT loops until interrupt", "[interrupts][halt]") {
     REQUIRE_FALSE(cpu.registers().halted);
     REQUIRE(cpu.registers().pc == 0x0038);  // IM 1 vector
 }
+
+TEST_CASE("Pulse INT clears itself if not accepted", "[interrupts][pulse]") {
+    TestBus bus;
+    Z80 cpu(bus);
+    cpu.reset();
+    auto& r = z80f::detail_z80_access::mutable_registers(cpu);
+    r.pc = 0;
+    r.iff1 = false;
+    r.im = 1;
+    bus.memory[0x0000] = 0x00;  // NOP
+    bus.memory[0x0001] = 0xFB;  // EI
+    bus.memory[0x0002] = 0x00;  // NOP
+    bus.memory[0x0003] = 0x00;  // NOP
+
+    cpu.pulse_int_line();
+    cpu.step();  // NOP at PC 0. Pulse should be consumed here and ignored since IFF1 is false.
+
+    REQUIRE(cpu.registers().pc == 0x0001);
+
+    cpu.step();  // EI
+    REQUIRE(cpu.registers().iff1);
+
+    cpu.step();  // NOP at PC 2. Wait 1 instruction after EI.
+    cpu.step();  // NOP at PC 3. Should NOT jump to 0x38 because pulse was lost!
+
+    REQUIRE(cpu.registers().pc == 0x0004);
+}
+
+TEST_CASE("Pulse INT vectors if accepted", "[interrupts][pulse]") {
+    TestBus bus;
+    Z80 cpu(bus);
+    cpu.reset();
+    auto& r = z80f::detail_z80_access::mutable_registers(cpu);
+    r.pc = 0;
+    r.iff1 = true;
+    r.im = 1;
+    r.sp = 0xFFF0;
+    bus.memory[0x0000] = 0x00;  // NOP
+
+    cpu.pulse_int_line();
+    cpu.step();  // Takes INT immediately
+
+    REQUIRE(cpu.registers().pc == 0x0038);
+    REQUIRE_FALSE(cpu.registers().iff1);
+
+    // Step again to verify the pulse didn't magically re-trigger
+    bus.memory[0x0038] = 0xFB;  // EI
+    bus.memory[0x0039] = 0x00;  // NOP
+    bus.memory[0x003A] = 0x00;  // NOP
+    cpu.step();                 // EI
+    cpu.step();                 // NOP
+    cpu.step();                 // NOP
+    REQUIRE(cpu.registers().pc == 0x003B);
+}

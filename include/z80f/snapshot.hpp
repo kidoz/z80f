@@ -14,6 +14,7 @@ struct Snapshot {
     bool nmi_line = false;
     bool nmi_pending = false;
     bool int_line = false;
+    bool int_pulse_pending = false;
 };
 
 }  // namespace z80f

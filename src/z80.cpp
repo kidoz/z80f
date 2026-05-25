@@ -32,6 +32,7 @@ void Z80::reset() {
     regs_.wz = 0;
     cycles_ = 0;
     nmi_pending_ = false;
+    int_pulse_pending_ = false;
 }
 
 void Z80::inc_r() {
@@ -106,6 +107,10 @@ void Z80::set_int_line(bool active) {
     int_line_ = active;
 }
 
+void Z80::pulse_int_line() noexcept {
+    int_pulse_pending_ = true;
+}
+
 bool Z80::handle_nmi() {
     if (!nmi_pending_) {
         return false;
@@ -123,8 +128,8 @@ bool Z80::handle_nmi() {
     return true;
 }
 
-bool Z80::handle_int() {
-    if (!regs_.iff1 || !int_line_) {
+bool Z80::handle_int(bool int_active) {
+    if (!regs_.iff1 || !int_active) {
         return false;
     }
     regs_.halted = false;
@@ -184,8 +189,13 @@ int Z80::step() {
     }
 
     // INT is serviced only when IFF1 is set and not directly after EI.
-    if (int_line_ && regs_.iff1 && !regs_.ei_pending) {
-        if (handle_int()) {
+    const bool int_active = int_line_ || int_pulse_pending_;
+    if (int_pulse_pending_) {
+        int_pulse_pending_ = false;
+    }
+
+    if (int_active && regs_.iff1 && !regs_.ei_pending) {
+        if (handle_int(int_active)) {
             return static_cast<int>(cycles_ - start);
         }
     }
@@ -224,6 +234,7 @@ Snapshot Z80::save_snapshot() const {
     s.nmi_line = nmi_line_;
     s.nmi_pending = nmi_pending_;
     s.int_line = int_line_;
+    s.int_pulse_pending = int_pulse_pending_;
     return s;
 }
 
@@ -233,6 +244,7 @@ void Z80::load_snapshot(const Snapshot& snapshot) {
     nmi_line_ = snapshot.nmi_line;
     nmi_pending_ = snapshot.nmi_pending;
     int_line_ = snapshot.int_line;
+    int_pulse_pending_ = snapshot.int_pulse_pending;
 }
 
 }  // namespace z80f

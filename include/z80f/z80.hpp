@@ -25,6 +25,7 @@ public:
 
     void set_nmi_line(bool active);
     void set_int_line(bool active);
+    void pulse_int_line() noexcept;
 
     [[nodiscard]] const Registers& registers() const noexcept { return regs_; }
 
@@ -52,7 +53,7 @@ private:
 
     // Interrupts
     bool handle_nmi();
-    bool handle_int();
+    bool handle_int(bool int_active);
 
     // Main dispatchers (defined in src/instructions.cpp / src/decode.cpp).
     int dispatch_unprefixed(std::uint8_t op);
@@ -110,6 +111,7 @@ private:
     bool nmi_line_ = false;
     bool nmi_pending_ = false;
     bool int_line_ = false;
+    bool int_pulse_pending_ = false;
 };
 
 }  // namespace z80f
