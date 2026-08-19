@@ -40,6 +40,8 @@ jobs:
             os: windows-latest
             cc: cl
             cxx: cl
+            # The public headers carry no DLL export annotations yet.
+            setup_args: '-Ddefault_library=static'
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -50,7 +52,7 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
         if: runner.os == 'Windows'
       - name: Configure
-        run: meson setup build --buildtype=debugoptimized -Dcatch2:tests=false
+        run: meson setup build --buildtype=debugoptimized -Dcatch2:tests=false ${{ matrix.setup_args }}
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}

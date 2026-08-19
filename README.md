@@ -28,6 +28,10 @@ meson test -C build
 
 Catch2 is fetched through Meson WrapDB; no system install is required.
 
+On Windows (MSVC), add `-Ddefault_library=static` to `meson setup` — the
+public headers do not yet carry DLL export annotations, so a shared build
+produces no import library.
+
 `meson test` runs the unit suite plus the `prelim`, ZEXDOC, and ZEXALL
 compliance ROMs (the exercisers take a few minutes each). For a sub-second
 check during development, run `meson test -C build 'z80f unit tests'`.
