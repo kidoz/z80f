@@ -26,12 +26,22 @@ z80f_lib = library(
   'z80f',
   z80f_sources,
   include_directories: z80f_inc,
+  version: meson.project_version(),
   install: true
 )
 
 z80f_dep = declare_dependency(
   include_directories: z80f_inc,
   link_with: z80f_lib
+)
+
+meson.override_dependency('z80f', z80f_dep)
+
+pkgconfig = import('pkgconfig')
+pkgconfig.generate(
+  z80f_lib,
+  name: 'z80f',
+  description: 'Cycle-aware Zilog Z80 emulation core'
 )
 
 install_headers(
