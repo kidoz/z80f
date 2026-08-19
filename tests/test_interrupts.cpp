@@ -1,10 +1,32 @@
 #include <catch2/catch_test_macros.hpp>
+#include <z80f/bus.hpp>
 #include <z80f/z80.hpp>
+
+#include <array>
+#include <cstdint>
 
 #include "test_bus.hpp"
 
 using z80f::Z80;
 using z80f::test::TestBus;
+
+namespace {
+// Bus with a configurable interrupt-acknowledge data-bus byte for IM 0 / IM 2.
+class AckBus final : public z80f::Bus {
+public:
+    std::array<std::uint8_t, 0x10000> memory{};
+    std::uint8_t ack_value = 0xFF;
+
+    std::uint8_t read_memory(std::uint16_t address) override { return memory[address]; }
+    void write_memory(std::uint16_t address, std::uint8_t value) override {
+        memory[address] = value;
+    }
+    std::uint8_t read_io(std::uint16_t /*port*/) override { return 0xFF; }
+    void write_io(std::uint16_t /*port*/, std::uint8_t /*value*/) override {}
+    int on_m_cycle(std::uint16_t /*address*/, int /*t_states*/) override { return 0; }
+    std::uint8_t acknowledge_interrupt() override { return ack_value; }
+};
+}  // namespace
 
 TEST_CASE("EI then INT is delayed by one instruction", "[interrupts][ei]") {
     TestBus bus;
@@ -52,6 +74,71 @@ TEST_CASE("IM 1 jumps to 0x0038", "[interrupts][im1]") {
     REQUIRE(cpu.registers().pc == 0x0038);
     REQUIRE_FALSE(cpu.registers().iff1);
     REQUIRE(cpu.registers().sp == 0xFFEE);
+}
+
+TEST_CASE("IM 0 executes the data-bus RST instruction", "[interrupts][im0]") {
+    AckBus bus;
+    bus.ack_value = 0xD7;  // RST 10h
+    Z80 cpu(bus);
+    cpu.reset();
+    auto& r = z80f::detail_z80_access::mutable_registers(cpu);
+    r.pc = 0x1000;
+    r.iff1 = true;
+    r.im = 0;
+    r.sp = 0xFFF0;
+
+    cpu.set_int_line(true);
+    int const t = cpu.step();
+
+    REQUIRE(cpu.registers().pc == 0x0010);
+    REQUIRE(t == 13);
+    REQUIRE(cpu.registers().sp == 0xFFEE);
+    REQUIRE(bus.memory[0xFFEE] == 0x00);  // pushed return address 0x1000
+    REQUIRE(bus.memory[0xFFEF] == 0x10);
+    REQUIRE_FALSE(cpu.registers().iff1);
+}
+
+TEST_CASE("IM 0 falls back to RST 38h without a bus vector", "[interrupts][im0]") {
+    TestBus bus;  // default acknowledge_interrupt() returns 0xFF (RST 38h)
+    Z80 cpu(bus);
+    cpu.reset();
+    auto& r = z80f::detail_z80_access::mutable_registers(cpu);
+    r.pc = 0x1000;
+    r.iff1 = true;
+    r.im = 0;
+    r.sp = 0xFFF0;
+
+    cpu.set_int_line(true);
+    int const t = cpu.step();
+
+    REQUIRE(cpu.registers().pc == 0x0038);
+    REQUIRE(t == 13);
+}
+
+TEST_CASE("IM 2 vectors through the I register table", "[interrupts][im2]") {
+    AckBus bus;
+    bus.ack_value = 0x22;
+    Z80 cpu(bus);
+    cpu.reset();
+    auto& r = z80f::detail_z80_access::mutable_registers(cpu);
+    r.pc = 0x1000;
+    r.iff1 = true;
+    r.im = 2;
+    r.i = 0x40;
+    r.sp = 0xFFF0;
+
+    bus.memory[0x4022] = 0x34;  // vector table entry -> 0x1234
+    bus.memory[0x4023] = 0x12;
+
+    cpu.set_int_line(true);
+    int const t = cpu.step();
+
+    REQUIRE(cpu.registers().pc == 0x1234);
+    REQUIRE(t == 19);
+    REQUIRE(cpu.registers().sp == 0xFFEE);
+    REQUIRE(bus.memory[0xFFEE] == 0x00);  // pushed return address 0x1000
+    REQUIRE(bus.memory[0xFFEF] == 0x10);
+    REQUIRE_FALSE(cpu.registers().iff1);
 }
 
 TEST_CASE("NMI vectors to 0x0066 and preserves IFF2", "[interrupts][nmi]") {
