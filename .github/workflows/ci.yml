@@ -9,7 +9,9 @@ jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - name: Install clang-format
+        run: pip install clang-format==22.1.8
       - name: Check clang-format
         run: |
           find include src tests examples -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) \
@@ -39,8 +41,8 @@ jobs:
             cc: cl
             cxx: cl
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.x'
       - name: Install Meson and Ninja
