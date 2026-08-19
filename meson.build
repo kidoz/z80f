@@ -3,8 +3,9 @@ project(
   'cpp',
   version: '1.0.0',
   license: 'MIT',
+  meson_version: '>=1.3.0',
   default_options: [
-    'cpp_std=c++23',
+    'cpp_std=c++23,c++latest',
     'warning_level=3',
     'werror=false',
     'b_ndebug=if-release'
