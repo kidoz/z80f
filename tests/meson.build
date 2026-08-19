@@ -10,7 +10,9 @@ test_sources = files(
   'test_indexed_ops.cpp',
   'test_timing.cpp',
   'test_host_examples.cpp',
-  'test_zexdoc.cpp'
+  'test_prelim.cpp',
+  'test_zexdoc.cpp',
+  'test_zexall.cpp'
 )
 
 z80f_tests = executable(
@@ -22,6 +24,31 @@ z80f_tests = executable(
 test(
   'z80f unit tests',
   z80f_tests,
+  args: ['~[compliance]'],
   workdir: meson.project_source_root(),
-  timeout: 300
+  timeout: 120
+)
+
+test(
+  'prelim smoke test',
+  z80f_tests,
+  args: ['[prelim]'],
+  workdir: meson.project_source_root(),
+  timeout: 60
+)
+
+test(
+  'zexdoc compliance',
+  z80f_tests,
+  args: ['[zexdoc]'],
+  workdir: meson.project_source_root(),
+  timeout: 1200
+)
+
+test(
+  'zexall compliance',
+  z80f_tests,
+  args: ['[zexall]'],
+  workdir: meson.project_source_root(),
+  timeout: 1200
 )
