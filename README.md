@@ -1,5 +1,6 @@
 # Z80F
 
+[![CI](https://github.com/kidoz/z80f/actions/workflows/ci.yml/badge.svg)](https://github.com/kidoz/z80f/actions/workflows/ci.yml)
 [![Language: C++23](https://img.shields.io/badge/C%2B%2B-23-00599C?logo=cplusplus&logoColor=white)](https://en.cppreference.com/w/cpp/23)
 [![Build: Meson](https://img.shields.io/badge/build-Meson-264478?logo=meson&logoColor=white)](https://mesonbuild.com/)
 [![Tests: Catch2](https://img.shields.io/badge/tests-Catch2_v3-red)](https://github.com/catchorg/Catch2)
@@ -26,6 +27,10 @@ meson test -C build
 ```
 
 Catch2 is fetched through Meson WrapDB; no system install is required.
+
+`meson test` runs the unit suite plus the `prelim`, ZEXDOC, and ZEXALL
+compliance ROMs (the exercisers take a few minutes each). For a sub-second
+check during development, run `meson test -C build 'z80f unit tests'`.
 
 Build options:
 
@@ -110,24 +115,31 @@ The example does not implement a full Spectrum — it shows where each host conc
 
 The Z80 core never knows about YM2612, SN76489, the 68000, or the VDP. All of that lives in the host bus layer.
 
-## Accuracy goals
+## Accuracy
+
+Verified by the bundled test suite — the full ZEXDOC (documented behavior) and
+ZEXALL (undocumented flag bits) instruction exercisers plus focused unit tests:
 
 - Full documented Z80 instruction set with CB / ED / DD / FD / DDCB / FDCB prefixes
-- All standard registers, shadow registers, `IX`/`IY` (and their half-registers), `I`, `R`
+- Undocumented instructions: `SLL`, IX/IY half-registers (`IXH`/`IXL`/`IYH`/`IYL`)
+- All standard registers, shadow registers, `IX`/`IY`, `I`, `R`
 - `IFF1`, `IFF2`, interrupt modes IM 0 / IM 1 / IM 2, NMI, `EI` delay, `HALT`
-- Documented flag behavior including bits 3 and 5 of `F` where required
-- Per-instruction T-state accounting, including taken vs not-taken branches and block-instruction repeat costs
-- `MEMPTR/WZ` modeling where high-accuracy tests depend on it
-- Snapshot save/load of CPU state
+- Documented flag behavior plus undocumented bits 3 and 5 of `F` (ZEXALL-verified)
+- Per-instruction T-state accounting, including taken vs not-taken branches,
+  block-instruction repeat costs, and interrupt acknowledge cycles
+- `MEMPTR/WZ` modeling
+- Snapshot save/load of CPU state, including interrupt line state
 
 Memory contention is **not** baked into the core; hosts add wait states through `Bus::on_m_cycle`.
 
 ## Current limitations
 
-- This early release covers the public API surface, register/flag model, and a working subset of the instruction set sufficient for the bundled tests. The remaining opcodes follow the same dispatch shape and are filled in incrementally.
-- `MEMPTR/WZ` is tracked but not yet wired into every flag side-effect.
-- ZEXDOC is integrated in the test suite; broader external suites such as ZEXALL
-  and fusetest are not integrated yet.
+- The FUSE per-instruction test suite is not integrated; `MEMPTR/WZ` side
+  effects are verified only where ZEXALL and the unit tests cover them.
+- IM 0 executes single-byte `RST` instructions supplied on the data bus; other
+  injected IM 0 instructions fall back to `RST 38h`.
+- No pin-level `BUSREQ`/`WAIT` modeling beyond the `Bus::on_m_cycle`
+  wait-state hook.
 
 ## References
 
