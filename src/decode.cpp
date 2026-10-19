@@ -1205,52 +1205,6 @@ int Z80::dispatch_index(std::uint16_t& idx_ref, bool is_ix_ref) {
         return a;
     };
 
-    auto read_r = [&](int r) -> std::uint8_t {
-        switch (r) {
-        case 0:
-            return regs_.b;
-        case 1:
-            return regs_.c;
-        case 2:
-            return regs_.d;
-        case 3:
-            return regs_.e;
-        case 4:
-            return ixh();
-        case 5:
-            return ixl();
-        case 7:
-            return regs_.a;
-        default:
-            return 0;
-        }
-    };
-    auto write_r = [&](int r, std::uint8_t v) {
-        switch (r) {
-        case 0:
-            regs_.b = v;
-            break;
-        case 1:
-            regs_.c = v;
-            break;
-        case 2:
-            regs_.d = v;
-            break;
-        case 3:
-            regs_.e = v;
-            break;
-        case 4:
-            set_ixh(v);
-            break;
-        case 5:
-            set_ixl(v);
-            break;
-        case 7:
-            regs_.a = v;
-            break;
-        }
-    };
-
     switch (op) {
     case 0x09:
         alu_add16(idx, regs_.bc());
@@ -1690,12 +1644,6 @@ int Z80::dispatch_index(std::uint16_t& idx_ref, bool is_ix_ref) {
     default:
         // Unhandled DD/FD: behaves like an unprefixed instruction with the
         // prefix essentially wasted. Re-dispatch as unprefixed.
-        (void)read_r;
-        (void)write_r;
-        // Decrement R because the prefixed second opcode already inc'd it but
-        // dispatch_unprefixed will also inc it; for now we leave as-is and
-        // execute the same byte unprefixed at PC+0 — but we already consumed
-        // it, so synthesize.
         t += dispatch_unprefixed(op);
         break;
     }
