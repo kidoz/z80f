@@ -435,6 +435,7 @@ int Z80::block_ld(int delta, bool repeat) {
     regs_.flags.bits = f;
     if (repeat && regs_.bc() != 0) {
         regs_.pc = static_cast<std::uint16_t>(regs_.pc - 2);
+        regs_.wz = static_cast<std::uint16_t>(regs_.pc + 1);
         idle(destination, 5);
         return 21;
     }
@@ -445,6 +446,7 @@ int Z80::block_cp(int delta, bool repeat) {
     std::uint8_t byte = read8(regs_.hl());
     const auto source = regs_.hl();
     idle(source, 5);
+    regs_.wz = static_cast<std::uint16_t>(regs_.wz + delta);
     std::uint16_t a = regs_.a;
     std::uint16_t diff = a - byte;
     auto result = static_cast<std::uint8_t>(diff & 0xFF);
@@ -475,6 +477,7 @@ int Z80::block_cp(int delta, bool repeat) {
     regs_.flags.bits = f;
     if (repeat && regs_.bc() != 0 && result != 0) {
         regs_.pc = static_cast<std::uint16_t>(regs_.pc - 2);
+        regs_.wz = static_cast<std::uint16_t>(regs_.pc + 1);
         idle(source, 5);
         return 21;
     }
@@ -486,12 +489,18 @@ int Z80::block_in(int delta, bool repeat) {
     const auto port = regs_.bc();
     const auto address = regs_.hl();
     std::uint8_t byte = io_in(port);
+    regs_.wz = static_cast<std::uint16_t>(port + delta);
     regs_.b = static_cast<std::uint8_t>(regs_.b - 1);
-    write8(regs_.hl(), byte);
-    regs_.set_hl(static_cast<std::uint16_t>(regs_.hl() + delta));
-    std::uint8_t f = sz53_of(regs_.b);
+    write8(address, byte);
+    regs_.set_hl(static_cast<std::uint16_t>(address + delta));
+    const auto sum = static_cast<std::uint16_t>(byte + static_cast<std::uint8_t>(regs_.c + delta));
+    auto f = static_cast<std::uint8_t>(
+        sz53_of(regs_.b) | detail::parity_of(static_cast<std::uint8_t>((sum & 7) ^ regs_.b)));
     if (byte & 0x80) {
         f |= nf;
+    }
+    if (sum > 0xFF) {
+        f |= hf | cf;
     }
     regs_.flags.bits = f;
     if (repeat && regs_.b != 0) {
@@ -508,10 +517,16 @@ int Z80::block_out(int delta, bool repeat) {
     regs_.b = static_cast<std::uint8_t>(regs_.b - 1);
     const auto port = regs_.bc();
     io_out(port, byte);
+    regs_.wz = static_cast<std::uint16_t>(port + delta);
     regs_.set_hl(static_cast<std::uint16_t>(regs_.hl() + delta));
-    std::uint8_t f = sz53_of(regs_.b);
+    const auto sum = static_cast<std::uint16_t>(byte + regs_.l);
+    auto f = static_cast<std::uint8_t>(
+        sz53_of(regs_.b) | detail::parity_of(static_cast<std::uint8_t>((sum & 7) ^ regs_.b)));
     if (byte & 0x80) {
         f |= nf;
+    }
+    if (sum > 0xFF) {
+        f |= hf | cf;
     }
     regs_.flags.bits = f;
     if (repeat && regs_.b != 0) {
