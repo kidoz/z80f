@@ -436,7 +436,7 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
                     call_cond(true);
                     t = 17;
                 } else {
-                    (void)fetch_immediate16();
+                    call_cond(false);
                     t = 10;
                 }
                 break;
@@ -473,7 +473,7 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
                     call_cond(true);
                     t = 17;
                 } else {
-                    (void)fetch_immediate16();
+                    call_cond(false);
                     t = 10;
                 }
                 break;
@@ -519,7 +519,7 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
                     call_cond(true);
                     t = 17;
                 } else {
-                    (void)fetch_immediate16();
+                    call_cond(false);
                     t = 10;
                 }
                 break;
@@ -577,7 +577,7 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
                     call_cond(true);
                     t = 17;
                 } else {
-                    (void)fetch_immediate16();
+                    call_cond(false);
                     t = 10;
                 }
                 break;
@@ -623,7 +623,7 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
                     call_cond(true);
                     t = 17;
                 } else {
-                    (void)fetch_immediate16();
+                    call_cond(false);
                     t = 10;
                 }
                 break;
@@ -665,7 +665,7 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
                     call_cond(true);
                     t = 17;
                 } else {
-                    (void)fetch_immediate16();
+                    call_cond(false);
                     t = 10;
                 }
                 break;
@@ -703,7 +703,7 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
                     call_cond(true);
                     t = 17;
                 } else {
-                    (void)fetch_immediate16();
+                    call_cond(false);
                     t = 10;
                 }
                 break;
@@ -741,7 +741,7 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
                     call_cond(true);
                     t = 17;
                 } else {
-                    (void)fetch_immediate16();
+                    call_cond(false);
                     t = 10;
                 }
                 break;

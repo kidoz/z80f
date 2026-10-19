@@ -167,3 +167,28 @@ TEST_CASE("CB BIT 7 of 0x80 clears Z", "[decode][cb][bit]") {
     REQUIRE(cpu.registers().flags.sign());
     REQUIRE(cpu.registers().flags.half_carry());
 }
+
+TEST_CASE("Untaken conditional CALL still loads WZ from its target", "[decode][jump]") {
+    constexpr std::uint8_t false_flags[] = {0x40, 0, 1, 0, 4, 0, 0x80, 0};
+    for (int condition = 0; condition < 8; ++condition) {
+        TestBus bus;
+        Z80 cpu(bus);
+        auto s = cpu.save_snapshot();
+        s.registers.sp = 0x9000;
+        s.registers.flags.bits = false_flags[condition];
+        s.registers.set_hl(0x4000);
+        cpu.load_snapshot(s);
+        bus.memory[0] = static_cast<std::uint8_t>(0xC4 + (8 * condition));
+        bus.memory[1] = 0x61;
+        bus.memory[2] = 0x9C;
+        bus.memory[3] = 0xCB;
+        bus.memory[4] = 0x46;
+        REQUIRE(cpu.step() == 10);
+        REQUIRE(cpu.registers().pc == 3);
+        REQUIRE(cpu.registers().sp == 0x9000);
+        REQUIRE(cpu.registers().wz == 0x9C61);
+        REQUIRE(cpu.registers().flags.bits == false_flags[condition]);
+        REQUIRE(cpu.step() == 12);
+        REQUIRE((cpu.registers().flags.bits & 0x28) == 0x08);
+    }
+}
