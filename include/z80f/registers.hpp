@@ -45,6 +45,7 @@ struct Registers {
     std::uint8_t im = 0;  // 0, 1, or 2
     bool halted = false;
     bool ei_pending = false;  // EI delays interrupts by one instruction
+    std::uint8_t q = 0;  // Previous instruction's flag result, or zero if it did not write flags.
 
     // 16-bit composite accessors
     constexpr std::uint16_t af() const noexcept {

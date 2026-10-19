@@ -59,6 +59,11 @@ std::uint16_t Z80::refresh_address() const {
     return static_cast<std::uint16_t>((regs_.i << 8) | regs_.r);
 }
 
+void Z80::write_flags(std::uint8_t flags) {
+    regs_.flags.bits = flags;
+    flags_modified_ = true;
+}
+
 std::uint8_t Z80::read8(std::uint16_t addr) {
     machine_cycle(addr, 3);
     return bus_->read_memory(addr);
@@ -137,6 +142,7 @@ bool Z80::handle_nmi() {
     nmi_pending_ = false;
     regs_.halted = false;
     regs_.iff2 = regs_.iff1;
+    regs_.q = 0;
     regs_.iff1 = false;
     inc_r();
     machine_cycle(regs_.pc, 5);
@@ -151,6 +157,8 @@ bool Z80::handle_int(bool int_active) {
         return false;
     }
     regs_.halted = false;
+    regs_.iff1 = false;
+    regs_.q = 0;
     regs_.iff1 = false;
     regs_.iff2 = false;
     inc_r();
@@ -195,6 +203,7 @@ void Z80::rst(std::uint16_t target) {
 int Z80::step() {
     std::uint64_t start = cycles_;
     instruction_t_states_ = 0;
+    flags_modified_ = false;
 
     // NMI is edge-triggered and always serviced first if pending.
     if (nmi_pending_) {
@@ -221,12 +230,14 @@ int Z80::step() {
         machine_cycle(regs_.pc, 4);
         (void)bus_->read_memory(regs_.pc);
         inc_r();
+        regs_.q = 0;
         return static_cast<int>(cycles_ - start);
     }
 
     std::uint8_t op = fetch_opcode();
     [[maybe_unused]] int const t = dispatch_unprefixed(op);
     assert(instruction_t_states_ == t);
+    regs_.q = flags_modified_ ? regs_.flags.bits : 0;
     return static_cast<int>(cycles_ - start);
 }
 

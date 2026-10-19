@@ -52,6 +52,7 @@ private:
     void machine_cycle(std::uint16_t address, int t_states);
     void idle(std::uint16_t address, int t_states);
     [[nodiscard]] std::uint16_t refresh_address() const;
+    void write_flags(std::uint8_t flags);
     std::uint8_t read8(std::uint16_t addr);
     void write8(std::uint16_t addr, std::uint8_t value);
     std::uint8_t fetch_opcode();
@@ -126,6 +127,7 @@ private:
     bool int_line_ = false;
     bool int_pulse_pending_ = false;
     int instruction_t_states_ = 0;
+    bool flags_modified_ = false;
 };
 
 }  // namespace z80f

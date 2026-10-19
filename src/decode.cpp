@@ -260,7 +260,7 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
         auto f = static_cast<std::uint8_t>(regs_.flags.bits & (sf | zf | pf | cf));
         f |= static_cast<std::uint8_t>(hf | nf);
         f |= static_cast<std::uint8_t>(regs_.a & (yf | xf));
-        regs_.flags.bits = f;
+        write_flags(f);
         break;
     }
 
@@ -310,8 +310,8 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
     case 0x37: {  // SCF
         auto f = static_cast<std::uint8_t>(regs_.flags.bits & (sf | zf | pf));
         f |= cf;
-        f |= static_cast<std::uint8_t>(regs_.a & (yf | xf));
-        regs_.flags.bits = f;
+        f |= static_cast<std::uint8_t>(((regs_.flags.bits ^ regs_.q) | regs_.a) & (yf | xf));
+        write_flags(f);
         break;
     }
     case 0x38: {
@@ -359,8 +359,8 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
         if (!old_c) {
             f |= cf;
         }
-        f |= static_cast<std::uint8_t>(regs_.a & (yf | xf));
-        regs_.flags.bits = f;
+        f |= static_cast<std::uint8_t>(((regs_.flags.bits ^ regs_.q) | regs_.a) & (yf | xf));
+        write_flags(f);
         break;
     }
 
@@ -864,7 +864,7 @@ int Z80::dispatch_ed() {
         regs_.wz = static_cast<std::uint16_t>(regs_.bc() + 1);
         std::uint8_t f = detail::sz53p_of(v);
         f |= static_cast<std::uint8_t>(regs_.flags.bits & cf);
-        regs_.flags.bits = f;
+        write_flags(f);
         if (dst != 6) {
             *reg8_ptr(regs_, dst) = v;
         }
@@ -1010,7 +1010,7 @@ int Z80::dispatch_ed() {
             f |= pf;
         }
         regs_.a = r;
-        regs_.flags.bits = f;
+        write_flags(f);
         break;
     }
 
@@ -1063,7 +1063,7 @@ int Z80::dispatch_ed() {
         if (regs_.iff2) {
             f |= pf;
         }
-        regs_.flags.bits = f;
+        write_flags(f);
         idle(refresh_address(), 1);
         t = 9;
         break;
@@ -1075,7 +1075,7 @@ int Z80::dispatch_ed() {
         if (regs_.iff2) {
             f |= pf;
         }
-        regs_.flags.bits = f;
+        write_flags(f);
         idle(refresh_address(), 1);
         t = 9;
         break;
@@ -1092,7 +1092,7 @@ int Z80::dispatch_ed() {
         regs_.wz = static_cast<std::uint16_t>(regs_.hl() + 1);
         auto f = static_cast<std::uint8_t>(regs_.flags.bits & cf);
         f |= detail::sz53p_of(regs_.a);
-        regs_.flags.bits = f;
+        write_flags(f);
         t = 18;
         break;
     }
@@ -1106,7 +1106,7 @@ int Z80::dispatch_ed() {
         regs_.wz = static_cast<std::uint16_t>(regs_.hl() + 1);
         auto f = static_cast<std::uint8_t>(regs_.flags.bits & cf);
         f |= detail::sz53p_of(regs_.a);
-        regs_.flags.bits = f;
+        write_flags(f);
         t = 18;
         break;
     }
@@ -1172,6 +1172,7 @@ int Z80::dispatch_ed() {
 // ---- DD/FD prefix ----
 
 int Z80::dispatch_index(std::uint16_t& idx_ref, bool is_ix_ref) {
+    regs_.q = 0;  // Ignored index prefixes break the flag-history chain.
     std::uint16_t* current_idx = &idx_ref;
     bool is_ix = is_ix_ref;
     std::uint8_t op = fetch_opcode();

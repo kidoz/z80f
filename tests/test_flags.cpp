@@ -179,3 +179,42 @@ TEST_CASE("SCF and CCF toggle carry correctly", "[flags]") {
     REQUIRE_FALSE(cpu.registers().flags.carry());
     REQUIRE(cpu.registers().flags.half_carry());  // CCF: H = old C
 }
+
+TEST_CASE("SCF and CCF retain flag history across unchanged results and snapshots",
+          "[flags][host][snapshot]") {
+    for (std::uint8_t const opcode : {0x37, 0x3F}) {
+        TestBus bus;
+        Z80 cpu(bus);
+        auto s = cpu.save_snapshot();
+        s.registers.a = 0;
+        s.registers.b = 0x27;
+        s.registers.flags.bits = 0x28;
+        cpu.load_snapshot(s);
+        bus.memory[0] = 0x04;  // INC B writes F=28 even though F already equals 28.
+        bus.memory[1] = opcode;
+        REQUIRE(cpu.step() == 4);
+        REQUIRE(cpu.registers().flags.bits == 0x28);
+        REQUIRE(cpu.registers().q == 0x28);
+        const auto after_inc = cpu.save_snapshot();
+        REQUIRE(cpu.step() == 4);
+        REQUIRE(cpu.registers().flags.bits == 0x01);
+        cpu.reset();
+        cpu.load_snapshot(after_inc);
+        REQUIRE(cpu.step() == 4);
+        REQUIRE(cpu.registers().flags.bits == 0x01);
+
+        cpu.load_snapshot(after_inc);
+        bus.memory[1] = 0x00;
+        bus.memory[2] = opcode;
+        REQUIRE(cpu.step() == 4);
+        REQUIRE(cpu.registers().q == 0);
+        REQUIRE(cpu.step() == 4);
+        REQUIRE(cpu.registers().flags.bits == 0x29);
+
+        cpu.load_snapshot(after_inc);
+        bus.memory[1] = 0xDD;
+        bus.memory[2] = opcode;
+        REQUIRE(cpu.step() == 8);
+        REQUIRE(cpu.registers().flags.bits == 0x29);
+    }
+}

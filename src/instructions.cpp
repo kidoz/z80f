@@ -38,7 +38,7 @@ void Z80::alu_add(std::uint8_t value, bool with_carry) {
     if ((~(a ^ value) & (a ^ sum) & 0x80) != 0) {
         f |= pf;
     }
-    regs_.flags.bits = f;
+    write_flags(f);
     regs_.a = result;
 }
 
@@ -57,7 +57,7 @@ void Z80::alu_sub(std::uint8_t value, bool with_carry) {
     if (((a ^ value) & (a ^ diff) & 0x80) != 0) {
         f |= pf;
     }
-    regs_.flags.bits = f;
+    write_flags(f);
     regs_.a = result;
 }
 
@@ -83,22 +83,22 @@ void Z80::alu_cp(std::uint8_t value) {
     if (((a ^ value) & (a ^ diff) & 0x80) != 0) {
         f |= pf;
     }
-    regs_.flags.bits = f;
+    write_flags(f);
 }
 
 void Z80::alu_and(std::uint8_t value) {
     regs_.a &= value;
-    regs_.flags.bits = static_cast<std::uint8_t>(sz53p_of(regs_.a) | hf);
+    write_flags(static_cast<std::uint8_t>(sz53p_of(regs_.a) | hf));
 }
 
 void Z80::alu_or(std::uint8_t value) {
     regs_.a |= value;
-    regs_.flags.bits = sz53p_of(regs_.a);
+    write_flags(sz53p_of(regs_.a));
 }
 
 void Z80::alu_xor(std::uint8_t value) {
     regs_.a ^= value;
-    regs_.flags.bits = sz53p_of(regs_.a);
+    write_flags(sz53p_of(regs_.a));
 }
 
 std::uint8_t Z80::alu_inc(std::uint8_t value) {
@@ -111,7 +111,7 @@ std::uint8_t Z80::alu_inc(std::uint8_t value) {
     if (result == 0x80) {
         f |= pf;
     }
-    regs_.flags.bits = f;
+    write_flags(f);
     return result;
 }
 
@@ -125,7 +125,7 @@ std::uint8_t Z80::alu_dec(std::uint8_t value) {
     if (result == 0x7F) {
         f |= pf;
     }
-    regs_.flags.bits = f;
+    write_flags(f);
     return result;
 }
 
@@ -142,7 +142,7 @@ void Z80::alu_add16(std::uint16_t& dest, std::uint16_t value) {
     }
     auto result = static_cast<std::uint16_t>(sum & 0xFFFF);
     f |= static_cast<std::uint8_t>((result >> 8) & (yf | xf));
-    regs_.flags.bits = f;
+    write_flags(f);
     regs_.wz = static_cast<std::uint16_t>(a + 1);
     dest = result;
 }
@@ -170,7 +170,7 @@ void Z80::alu_adc16(std::uint16_t value) {
         f |= cf;
     }
     f |= static_cast<std::uint8_t>((result >> 8) & (yf | xf));
-    regs_.flags.bits = f;
+    write_flags(f);
     regs_.wz = static_cast<std::uint16_t>(hl + 1);
     regs_.set_hl(result);
 }
@@ -198,7 +198,7 @@ void Z80::alu_sbc16(std::uint16_t value) {
         f |= cf;
     }
     f |= static_cast<std::uint8_t>((result >> 8) & (yf | xf));
-    regs_.flags.bits = f;
+    write_flags(f);
     regs_.wz = static_cast<std::uint16_t>(hl + 1);
     regs_.set_hl(result);
 }
@@ -231,7 +231,7 @@ void Z80::alu_daa() {
         f |= hf;
     }
 
-    regs_.flags.bits = f;
+    write_flags(f);
     regs_.a = new_a;
 }
 
@@ -245,7 +245,7 @@ void Z80::alu_rlca() {
         f |= cf;
     }
     f |= static_cast<std::uint8_t>(a & (yf | xf));
-    regs_.flags.bits = f;
+    write_flags(f);
 }
 
 void Z80::alu_rrca() {
@@ -258,7 +258,7 @@ void Z80::alu_rrca() {
         f |= cf;
     }
     f |= static_cast<std::uint8_t>(a & (yf | xf));
-    regs_.flags.bits = f;
+    write_flags(f);
 }
 
 void Z80::alu_rla() {
@@ -272,7 +272,7 @@ void Z80::alu_rla() {
         f |= cf;
     }
     f |= static_cast<std::uint8_t>(a & (yf | xf));
-    regs_.flags.bits = f;
+    write_flags(f);
 }
 
 void Z80::alu_rra() {
@@ -286,7 +286,7 @@ void Z80::alu_rra() {
         f |= cf;
     }
     f |= static_cast<std::uint8_t>(a & (yf | xf));
-    regs_.flags.bits = f;
+    write_flags(f);
 }
 
 // ---- CB-prefix rotations/shifts ----
@@ -298,7 +298,7 @@ std::uint8_t Z80::cb_rlc(std::uint8_t v) {
     if (c) {
         f |= cf;
     }
-    regs_.flags.bits = f;
+    write_flags(f);
     return r;
 }
 
@@ -309,7 +309,7 @@ std::uint8_t Z80::cb_rrc(std::uint8_t v) {
     if (c) {
         f |= cf;
     }
-    regs_.flags.bits = f;
+    write_flags(f);
     return r;
 }
 
@@ -321,7 +321,7 @@ std::uint8_t Z80::cb_rl(std::uint8_t v) {
     if (new_c) {
         f |= cf;
     }
-    regs_.flags.bits = f;
+    write_flags(f);
     return r;
 }
 
@@ -333,7 +333,7 @@ std::uint8_t Z80::cb_rr(std::uint8_t v) {
     if (new_c) {
         f |= cf;
     }
-    regs_.flags.bits = f;
+    write_flags(f);
     return r;
 }
 
@@ -344,7 +344,7 @@ std::uint8_t Z80::cb_sla(std::uint8_t v) {
     if (c) {
         f |= cf;
     }
-    regs_.flags.bits = f;
+    write_flags(f);
     return r;
 }
 
@@ -355,7 +355,7 @@ std::uint8_t Z80::cb_sra(std::uint8_t v) {
     if (c) {
         f |= cf;
     }
-    regs_.flags.bits = f;
+    write_flags(f);
     return r;
 }
 
@@ -367,7 +367,7 @@ std::uint8_t Z80::cb_sll(std::uint8_t v) {
     if (c) {
         f |= cf;
     }
-    regs_.flags.bits = f;
+    write_flags(f);
     return r;
 }
 
@@ -378,7 +378,7 @@ std::uint8_t Z80::cb_srl(std::uint8_t v) {
     if (c) {
         f |= cf;
     }
-    regs_.flags.bits = f;
+    write_flags(f);
     return r;
 }
 
@@ -400,7 +400,7 @@ void Z80::cb_bit(std::uint8_t bit, std::uint8_t v, std::uint16_t internal_addr) 
     } else {
         f |= static_cast<std::uint8_t>(v & (yf | xf));
     }
-    regs_.flags.bits = f;
+    write_flags(f);
 }
 
 std::uint8_t Z80::cb_set(std::uint8_t bit, std::uint8_t v) {
@@ -432,7 +432,7 @@ int Z80::block_ld(int delta, bool repeat) {
     if (regs_.bc() != 0) {
         f |= pf;
     }
-    regs_.flags.bits = f;
+    write_flags(f);
     if (repeat && regs_.bc() != 0) {
         regs_.pc = static_cast<std::uint16_t>(regs_.pc - 2);
         regs_.wz = static_cast<std::uint16_t>(regs_.pc + 1);
@@ -474,7 +474,7 @@ int Z80::block_cp(int delta, bool repeat) {
     if (n & 0x08) {
         f |= xf;
     }
-    regs_.flags.bits = f;
+    write_flags(f);
     if (repeat && regs_.bc() != 0 && result != 0) {
         regs_.pc = static_cast<std::uint16_t>(regs_.pc - 2);
         regs_.wz = static_cast<std::uint16_t>(regs_.pc + 1);
@@ -502,7 +502,7 @@ int Z80::block_in(int delta, bool repeat) {
     if (sum > 0xFF) {
         f |= hf | cf;
     }
-    regs_.flags.bits = f;
+    write_flags(f);
     if (repeat && regs_.b != 0) {
         regs_.pc = static_cast<std::uint16_t>(regs_.pc - 2);
         idle(address, 5);
@@ -528,7 +528,7 @@ int Z80::block_out(int delta, bool repeat) {
     if (sum > 0xFF) {
         f |= hf | cf;
     }
-    regs_.flags.bits = f;
+    write_flags(f);
     if (repeat && regs_.b != 0) {
         regs_.pc = static_cast<std::uint16_t>(regs_.pc - 2);
         idle(port, 5);
