@@ -100,7 +100,7 @@ private:
     std::uint8_t cb_sra(std::uint8_t v);
     std::uint8_t cb_sll(std::uint8_t v);  // undocumented SLL/SL1
     std::uint8_t cb_srl(std::uint8_t v);
-    void cb_bit(std::uint8_t bit, std::uint8_t v, std::uint16_t internal_addr);
+    void cb_bit(std::uint8_t bit, std::uint8_t v, std::uint8_t flag_source);
     static std::uint8_t cb_set(std::uint8_t bit, std::uint8_t v);
     static std::uint8_t cb_res(std::uint8_t bit, std::uint8_t v);
 

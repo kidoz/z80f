@@ -817,7 +817,7 @@ int Z80::dispatch_cb() {
     } else if (kind == 1) {
         // BIT
         cb_bit(static_cast<std::uint8_t>(bit_or_op), value,
-               is_hl ? regs_.wz : static_cast<std::uint16_t>(0xFFFF));
+               is_hl ? static_cast<std::uint8_t>(regs_.wz >> 8) : value);
         if (is_hl) {
             t = 12;
         }
@@ -1774,7 +1774,7 @@ int Z80::dispatch_index_cb(std::uint16_t& idx) {
             }
         }
     } else if (kind == 1) {
-        cb_bit(static_cast<std::uint8_t>(bit_or_op), value, a);
+        cb_bit(static_cast<std::uint8_t>(bit_or_op), value, static_cast<std::uint8_t>(a >> 8));
     } else if (kind == 2) {
         value = cb_res(static_cast<std::uint8_t>(bit_or_op), value);
         write8(a, value);

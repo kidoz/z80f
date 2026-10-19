@@ -218,3 +218,30 @@ TEST_CASE("SCF and CCF retain flag history across unchanged results and snapshot
         REQUIRE(cpu.registers().flags.bits == 0x29);
     }
 }
+
+TEST_CASE("Memory BIT accepts FFFF as an address while register BIT uses operand flags",
+          "[flags][cb][indexed]") {
+    for (std::uint8_t const prefix : {0x00, 0xDD, 0xFD}) {
+        TestBus bus;
+        Z80 cpu(bus);
+        auto s = cpu.save_snapshot();
+        s.registers.wz = 0xFFFF;
+        s.registers.set_hl(0x4000);
+        s.registers.ix = 0xFFFF;
+        s.registers.iy = 0x0000;
+        s.registers.b = 0;
+        s.registers.flags.bits = 0;
+        cpu.load_snapshot(s);
+        if (prefix == 0) {
+            load_program(bus, 0, {0xCB, 0x46, 0xCB, 0x40});
+        } else {
+            load_program(bus, 0,
+                         {prefix, 0xCB, static_cast<std::uint8_t>(prefix == 0xFD ? 0xFF : 0), 0x46,
+                          0xCB, 0x40});
+        }
+        REQUIRE(cpu.step() == (prefix == 0 ? 12 : 20));
+        REQUIRE(cpu.registers().flags.bits == 0x7C);
+        REQUIRE(cpu.step() == 8);
+        REQUIRE(cpu.registers().flags.bits == 0x54);
+    }
+}

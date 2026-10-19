@@ -382,7 +382,7 @@ std::uint8_t Z80::cb_srl(std::uint8_t v) {
     return r;
 }
 
-void Z80::cb_bit(std::uint8_t bit, std::uint8_t v, std::uint16_t internal_addr) {
+void Z80::cb_bit(std::uint8_t bit, std::uint8_t v, std::uint8_t flag_source) {
     auto mask = static_cast<std::uint8_t>(1 << bit);
     auto result = static_cast<std::uint8_t>(v & mask);
     auto f = static_cast<std::uint8_t>(regs_.flags.bits & cf);
@@ -393,13 +393,7 @@ void Z80::cb_bit(std::uint8_t bit, std::uint8_t v, std::uint16_t internal_addr) 
     if (bit == 7 && (result & 0x80)) {
         f |= sf;
     }
-    // Y and X come from the high byte of the internal address for BIT n,(HL)
-    // and BIT n,(IX+d) — and from the operand itself for register form.
-    if (internal_addr != 0xFFFF) {
-        f |= static_cast<std::uint8_t>((internal_addr >> 8) & (yf | xf));
-    } else {
-        f |= static_cast<std::uint8_t>(v & (yf | xf));
-    }
+    f |= static_cast<std::uint8_t>(flag_source & (yf | xf));
     write_flags(f);
 }
 
