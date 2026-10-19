@@ -1,5 +1,8 @@
+#include <catch2/catch_message.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <z80f/z80.hpp>
+
+#include <cstdint>
 
 #include "test_bus.hpp"
 
@@ -62,4 +65,26 @@ TEST_CASE("R register increments on M1 only and preserves bit 7", "[registers][r
 
     REQUIRE((cpu.registers().r & 0x80) == 0x80);
     REQUIRE((cpu.registers().r & 0x7F) == 3);
+}
+
+TEST_CASE("LD R,A copies all eight bits before subsequent refresh increments", "[registers][r]") {
+    for (std::uint8_t const value : {0x00, 0x7F, 0x80, 0xFF}) {
+        CAPTURE(value);
+        TestBus bus;
+        Z80 cpu(bus);
+        auto s = cpu.save_snapshot();
+        s.registers.a = value;
+        s.registers.r = static_cast<std::uint8_t>(value ^ 0x80);
+        cpu.load_snapshot(s);
+        bus.memory[0] = 0xED;
+        bus.memory[1] = 0x4F;
+        bus.memory[2] = 0xED;
+        bus.memory[3] = 0x5F;
+        REQUIRE(cpu.step() == 9);
+        REQUIRE(cpu.registers().r == value);
+        REQUIRE(cpu.registers().flags.bits == s.registers.flags.bits);
+        REQUIRE(cpu.step() == 9);
+        REQUIRE(cpu.registers().a ==
+                static_cast<std::uint8_t>((value & 0x80) | ((value + 2) & 0x7F)));
+    }
 }

@@ -1053,7 +1053,7 @@ int Z80::dispatch_ed() {
         break;
     case 0x4F:
         idle(refresh_address(), 1);
-        regs_.r = static_cast<std::uint8_t>((regs_.r & 0x80) | (regs_.a & 0x7F));
+        regs_.r = regs_.a;
         t = 9;
         break;
     case 0x57: {
