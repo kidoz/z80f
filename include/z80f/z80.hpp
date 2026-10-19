@@ -49,6 +49,9 @@ private:
     Registers& unsafe_registers_mutable() noexcept { return regs_; }
 
     // Bus helpers (one T-state count surfaced through on_m_cycle per access).
+    void machine_cycle(std::uint16_t address, int t_states);
+    void idle(std::uint16_t address, int t_states);
+    [[nodiscard]] std::uint16_t refresh_address() const;
     std::uint8_t read8(std::uint16_t addr);
     void write8(std::uint16_t addr, std::uint8_t value);
     std::uint8_t fetch_opcode();
@@ -101,10 +104,10 @@ private:
     static std::uint8_t cb_res(std::uint8_t bit, std::uint8_t v);
 
     // Block ops
-    void block_ld(int delta, bool repeat);
-    void block_cp(int delta, bool repeat);
-    void block_in(int delta, bool repeat);
-    void block_out(int delta, bool repeat);
+    int block_ld(int delta, bool repeat);
+    int block_cp(int delta, bool repeat);
+    int block_in(int delta, bool repeat);
+    int block_out(int delta, bool repeat);
 
     // Jump / call helpers
     void jr_cond(bool cond);
@@ -122,6 +125,7 @@ private:
     bool nmi_pending_ = false;
     bool int_line_ = false;
     bool int_pulse_pending_ = false;
+    int instruction_t_states_ = 0;
 };
 
 }  // namespace z80f

@@ -45,6 +45,12 @@ static inline std::uint8_t* reg8_ptr(Registers& r, int idx) {
 
 int Z80::dispatch_unprefixed(std::uint8_t op) {
     int t = detail::base_t_for(op);
+    if ((op & 0xCF) == 0x03 || (op & 0xCF) == 0x0B || op == 0xF9) {
+        idle(refresh_address(), 2);
+    }
+    if ((op & 0xC7) == 0xC0 || (op & 0xCF) == 0xC5) {
+        idle(refresh_address(), 1);
+    }
 
     switch (op) {
     // --- 0x00..0x3F: assorted ---
@@ -107,9 +113,11 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
         break;
 
     case 0x10: {  // DJNZ
+        idle(refresh_address(), 1);
         auto d = static_cast<std::int8_t>(fetch_immediate());
         regs_.b = static_cast<std::uint8_t>(regs_.b - 1);
         if (regs_.b != 0) {
+            idle(static_cast<std::uint16_t>(regs_.pc - 1), 5);
             regs_.pc = static_cast<std::uint16_t>(regs_.pc + d);
             regs_.wz = regs_.pc;
             t = 13;
@@ -142,6 +150,7 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
         break;
     case 0x18: {
         auto d = static_cast<std::int8_t>(fetch_immediate());
+        idle(static_cast<std::uint16_t>(regs_.pc - 1), 5);
         regs_.pc = static_cast<std::uint16_t>(regs_.pc + d);
         regs_.wz = regs_.pc;
         break;
@@ -175,6 +184,7 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
     case 0x20: {
         auto d = static_cast<std::int8_t>(fetch_immediate());
         if (!regs_.flags.zero()) {
+            idle(static_cast<std::uint16_t>(regs_.pc - 1), 5);
             regs_.pc = static_cast<std::uint16_t>(regs_.pc + d);
             regs_.wz = regs_.pc;
             t = 12;
@@ -211,6 +221,7 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
     case 0x28: {
         auto d = static_cast<std::int8_t>(fetch_immediate());
         if (regs_.flags.zero()) {
+            idle(static_cast<std::uint16_t>(regs_.pc - 1), 5);
             regs_.pc = static_cast<std::uint16_t>(regs_.pc + d);
             regs_.wz = regs_.pc;
             t = 12;
@@ -256,6 +267,7 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
     case 0x30: {
         auto d = static_cast<std::int8_t>(fetch_immediate());
         if (!regs_.flags.carry()) {
+            idle(static_cast<std::uint16_t>(regs_.pc - 1), 5);
             regs_.pc = static_cast<std::uint16_t>(regs_.pc + d);
             regs_.wz = regs_.pc;
             t = 12;
@@ -279,12 +291,14 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
     case 0x34: {
         std::uint8_t v = read8(regs_.hl());
         v = alu_inc(v);
+        idle(regs_.hl(), 1);
         write8(regs_.hl(), v);
         break;
     }
     case 0x35: {
         std::uint8_t v = read8(regs_.hl());
         v = alu_dec(v);
+        idle(regs_.hl(), 1);
         write8(regs_.hl(), v);
         break;
     }
@@ -303,6 +317,7 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
     case 0x38: {
         auto d = static_cast<std::int8_t>(fetch_immediate());
         if (regs_.flags.carry()) {
+            idle(static_cast<std::uint16_t>(regs_.pc - 1), 5);
             regs_.pc = static_cast<std::uint16_t>(regs_.pc + d);
             regs_.wz = regs_.pc;
             t = 12;
@@ -465,6 +480,7 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
             case 0xCD: {
                 std::uint16_t target = fetch_immediate16();
                 regs_.wz = target;
+                idle(static_cast<std::uint16_t>(regs_.pc - 1), 1);
                 push16(regs_.pc);
                 regs_.pc = target;
                 break;
@@ -593,8 +609,10 @@ int Z80::dispatch_unprefixed(std::uint8_t op) {
             case 0xE3: {  // EX (SP),HL
                 std::uint8_t lo = read8(regs_.sp);
                 std::uint8_t hi = read8(static_cast<std::uint16_t>(regs_.sp + 1));
+                idle(static_cast<std::uint16_t>(regs_.sp + 1), 1);
                 write8(static_cast<std::uint16_t>(regs_.sp + 1), regs_.h);
                 write8(regs_.sp, regs_.l);
+                idle(regs_.sp, 2);
                 regs_.l = lo;
                 regs_.h = hi;
                 regs_.wz = regs_.hl();
@@ -757,6 +775,7 @@ int Z80::dispatch_cb() {
 
     if (is_hl) {
         value = read8(regs_.hl());
+        idle(regs_.hl(), 1);
     } else {
         value = *reg8_ptr(regs_, reg);
     }
@@ -1028,10 +1047,12 @@ int Z80::dispatch_ed() {
 
     // LD I,A / LD R,A / LD A,I / LD A,R
     case 0x47:
+        idle(refresh_address(), 1);
         regs_.i = regs_.a;
         t = 9;
         break;
     case 0x4F:
+        idle(refresh_address(), 1);
         regs_.r = static_cast<std::uint8_t>((regs_.r & 0x80) | (regs_.a & 0x7F));
         t = 9;
         break;
@@ -1043,6 +1064,7 @@ int Z80::dispatch_ed() {
             f |= pf;
         }
         regs_.flags.bits = f;
+        idle(refresh_address(), 1);
         t = 9;
         break;
     }
@@ -1054,6 +1076,7 @@ int Z80::dispatch_ed() {
             f |= pf;
         }
         regs_.flags.bits = f;
+        idle(refresh_address(), 1);
         t = 9;
         break;
     }
@@ -1063,6 +1086,7 @@ int Z80::dispatch_ed() {
         std::uint8_t m = read8(regs_.hl());
         auto new_m = static_cast<std::uint8_t>(((regs_.a & 0x0F) << 4) | (m >> 4));
         auto new_a = static_cast<std::uint8_t>((regs_.a & 0xF0) | (m & 0x0F));
+        idle(regs_.hl(), 4);
         write8(regs_.hl(), new_m);
         regs_.a = new_a;
         regs_.wz = static_cast<std::uint16_t>(regs_.hl() + 1);
@@ -1076,6 +1100,7 @@ int Z80::dispatch_ed() {
         std::uint8_t m = read8(regs_.hl());
         auto new_m = static_cast<std::uint8_t>(((m & 0x0F) << 4) | (regs_.a & 0x0F));
         auto new_a = static_cast<std::uint8_t>((regs_.a & 0xF0) | (m >> 4));
+        idle(regs_.hl(), 4);
         write8(regs_.hl(), new_m);
         regs_.a = new_a;
         regs_.wz = static_cast<std::uint16_t>(regs_.hl() + 1);
@@ -1088,68 +1113,52 @@ int Z80::dispatch_ed() {
 
     // Block ops
     case 0xA0:
-        block_ld(+1, false);
-        t = 16;
+        t = block_ld(+1, false);
         break;
     case 0xA8:
-        block_ld(-1, false);
-        t = 16;
+        t = block_ld(-1, false);
         break;
     case 0xB0:
-        block_ld(+1, true);
-        t = 16;
+        t = block_ld(+1, true);
         break;
     case 0xB8:
-        block_ld(-1, true);
-        t = 16;
+        t = block_ld(-1, true);
         break;
     case 0xA1:
-        block_cp(+1, false);
-        t = 16;
+        t = block_cp(+1, false);
         break;
     case 0xA9:
-        block_cp(-1, false);
-        t = 16;
+        t = block_cp(-1, false);
         break;
     case 0xB1:
-        block_cp(+1, true);
-        t = 16;
+        t = block_cp(+1, true);
         break;
     case 0xB9:
-        block_cp(-1, true);
-        t = 16;
+        t = block_cp(-1, true);
         break;
     case 0xA2:
-        block_in(+1, false);
-        t = 16;
+        t = block_in(+1, false);
         break;
     case 0xAA:
-        block_in(-1, false);
-        t = 16;
+        t = block_in(-1, false);
         break;
     case 0xB2:
-        block_in(+1, true);
-        t = 16;
+        t = block_in(+1, true);
         break;
     case 0xBA:
-        block_in(-1, true);
-        t = 16;
+        t = block_in(-1, true);
         break;
     case 0xA3:
-        block_out(+1, false);
-        t = 16;
+        t = block_out(+1, false);
         break;
     case 0xAB:
-        block_out(-1, false);
-        t = 16;
+        t = block_out(-1, false);
         break;
     case 0xB3:
-        block_out(+1, true);
-        t = 16;
+        t = block_out(+1, true);
         break;
     case 0xBB:
-        block_out(-1, true);
-        t = 16;
+        t = block_out(-1, true);
         break;
 
     default:
@@ -1191,7 +1200,7 @@ int Z80::dispatch_index(std::uint16_t& idx_ref, bool is_ix_ref) {
         auto d = static_cast<std::int8_t>(fetch_immediate());
         auto a = static_cast<std::uint16_t>(idx + d);
         regs_.wz = a;
-        cycles_ += bus_->on_m_cycle(idx, 5);
+        idle(static_cast<std::uint16_t>(regs_.pc - 1), 5);
         return a;
     };
 
@@ -1281,10 +1290,12 @@ int Z80::dispatch_index(std::uint16_t& idx_ref, bool is_ix_ref) {
         break;
     }
     case 0x23:
+        idle(refresh_address(), 2);
         idx = static_cast<std::uint16_t>(idx + 1);
         t += 6;
         break;
     case 0x2B:
+        idle(refresh_address(), 2);
         idx = static_cast<std::uint16_t>(idx - 1);
         t += 6;
         break;
@@ -1318,6 +1329,7 @@ int Z80::dispatch_index(std::uint16_t& idx_ref, bool is_ix_ref) {
         std::uint16_t a = idx_addr();
         std::uint8_t v = read8(a);
         v = alu_inc(v);
+        idle(a, 1);
         write8(a, v);
         t += 19;
         break;
@@ -1326,6 +1338,7 @@ int Z80::dispatch_index(std::uint16_t& idx_ref, bool is_ix_ref) {
         std::uint16_t a = idx_addr();
         std::uint8_t v = read8(a);
         v = alu_dec(v);
+        idle(a, 1);
         write8(a, v);
         t += 19;
         break;
@@ -1335,7 +1348,7 @@ int Z80::dispatch_index(std::uint16_t& idx_ref, bool is_ix_ref) {
         std::uint8_t n = fetch_immediate();
         auto a = static_cast<std::uint16_t>(idx + d);
         regs_.wz = a;
-        cycles_ += bus_->on_m_cycle(idx, 2);
+        idle(static_cast<std::uint16_t>(regs_.pc - 1), 2);
         write8(a, n);
         t += 15;
         break;
@@ -1479,14 +1492,17 @@ int Z80::dispatch_index(std::uint16_t& idx_ref, bool is_ix_ref) {
         t += 10;
         break;
     case 0xE5:
+        idle(refresh_address(), 1);
         push16(idx);
         t += 11;
         break;
     case 0xE3: {  // EX (SP),IX
         std::uint8_t lo = read8(regs_.sp);
         std::uint8_t hi = read8(static_cast<std::uint16_t>(regs_.sp + 1));
+        idle(static_cast<std::uint16_t>(regs_.sp + 1), 1);
         write8(static_cast<std::uint16_t>(regs_.sp + 1), static_cast<std::uint8_t>(idx >> 8));
         write8(regs_.sp, static_cast<std::uint8_t>(idx & 0xFF));
+        idle(regs_.sp, 2);
         idx = static_cast<std::uint16_t>((hi << 8) | lo);
         regs_.wz = idx;
         t += 19;
@@ -1497,6 +1513,7 @@ int Z80::dispatch_index(std::uint16_t& idx_ref, bool is_ix_ref) {
         t += 4;
         break;
     case 0xF9:
+        idle(refresh_address(), 2);
         regs_.sp = idx;
         t += 6;
         break;
@@ -1692,13 +1709,14 @@ int Z80::dispatch_index_cb(std::uint16_t& idx) {
     std::uint8_t op = fetch_immediate();  // not a opcode fetch — does NOT inc R
     auto a = static_cast<std::uint16_t>(idx + d);
     regs_.wz = a;
-    cycles_ += bus_->on_m_cycle(idx, 2);
+    idle(static_cast<std::uint16_t>(regs_.pc - 1), 2);
 
     int const reg = op & 7;
     int const kind = (op >> 6) & 3;
     int const bit_or_op = (op >> 3) & 7;
 
     std::uint8_t value = read8(a);
+    idle(a, 1);
 
     if (kind == 0) {
         switch (bit_or_op) {

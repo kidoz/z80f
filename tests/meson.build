@@ -9,6 +9,7 @@ test_sources = files(
   'test_block_ops.cpp',
   'test_indexed_ops.cpp',
   'test_timing.cpp',
+  'test_bus_cycles.cpp',
   'test_host_examples.cpp',
   'test_prelim.cpp',
   'test_zexdoc.cpp',

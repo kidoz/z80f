@@ -130,6 +130,7 @@ std::uint8_t Z80::alu_dec(std::uint8_t value) {
 }
 
 void Z80::alu_add16(std::uint16_t& dest, std::uint16_t value) {
+    idle(refresh_address(), 7);
     std::uint32_t a = dest;
     std::uint32_t sum = a + value;
     auto f = static_cast<std::uint8_t>(regs_.flags.bits & (sf | zf | pf));
@@ -147,6 +148,7 @@ void Z80::alu_add16(std::uint16_t& dest, std::uint16_t value) {
 }
 
 void Z80::alu_adc16(std::uint16_t value) {
+    idle(refresh_address(), 7);
     std::uint32_t hl = regs_.hl();
     std::uint32_t c = regs_.flags.carry() ? 1U : 0U;
     std::uint32_t sum = hl + value + c;
@@ -174,6 +176,7 @@ void Z80::alu_adc16(std::uint16_t value) {
 }
 
 void Z80::alu_sbc16(std::uint16_t value) {
+    idle(refresh_address(), 7);
     std::uint32_t hl = regs_.hl();
     std::uint32_t c = regs_.flags.carry() ? 1U : 0U;
     std::uint32_t diff = hl - value - c;
@@ -410,10 +413,11 @@ std::uint8_t Z80::cb_res(std::uint8_t bit, std::uint8_t v) {
 
 // ---- Block instructions ----
 
-void Z80::block_ld(int delta, bool repeat) {
+int Z80::block_ld(int delta, bool repeat) {
     std::uint8_t byte = read8(regs_.hl());
-    write8(regs_.de(), byte);
-    cycles_ += bus_->on_m_cycle(regs_.de(), 2);  // 2 extra T-states
+    const auto destination = regs_.de();
+    write8(destination, byte);
+    idle(regs_.de(), 2);
     regs_.set_hl(static_cast<std::uint16_t>(regs_.hl() + delta));
     regs_.set_de(static_cast<std::uint16_t>(regs_.de() + delta));
     regs_.set_bc(static_cast<std::uint16_t>(regs_.bc() - 1));
@@ -431,14 +435,16 @@ void Z80::block_ld(int delta, bool repeat) {
     regs_.flags.bits = f;
     if (repeat && regs_.bc() != 0) {
         regs_.pc = static_cast<std::uint16_t>(regs_.pc - 2);
-        cycles_ += bus_->on_m_cycle(regs_.de(), 5);
-        cycles_ += 5;
+        idle(destination, 5);
+        return 21;
     }
+    return 16;
 }
 
-void Z80::block_cp(int delta, bool repeat) {
+int Z80::block_cp(int delta, bool repeat) {
     std::uint8_t byte = read8(regs_.hl());
-    cycles_ += bus_->on_m_cycle(regs_.hl(), 5);
+    const auto source = regs_.hl();
+    idle(source, 5);
     std::uint16_t a = regs_.a;
     std::uint16_t diff = a - byte;
     auto result = static_cast<std::uint8_t>(diff & 0xFF);
@@ -469,13 +475,17 @@ void Z80::block_cp(int delta, bool repeat) {
     regs_.flags.bits = f;
     if (repeat && regs_.bc() != 0 && result != 0) {
         regs_.pc = static_cast<std::uint16_t>(regs_.pc - 2);
-        cycles_ += bus_->on_m_cycle(regs_.hl(), 5);
-        cycles_ += 5;
+        idle(source, 5);
+        return 21;
     }
+    return 16;
 }
 
-void Z80::block_in(int delta, bool repeat) {
-    std::uint8_t byte = io_in(regs_.bc());
+int Z80::block_in(int delta, bool repeat) {
+    idle(refresh_address(), 1);
+    const auto port = regs_.bc();
+    const auto address = regs_.hl();
+    std::uint8_t byte = io_in(port);
     regs_.b = static_cast<std::uint8_t>(regs_.b - 1);
     write8(regs_.hl(), byte);
     regs_.set_hl(static_cast<std::uint16_t>(regs_.hl() + delta));
@@ -486,15 +496,18 @@ void Z80::block_in(int delta, bool repeat) {
     regs_.flags.bits = f;
     if (repeat && regs_.b != 0) {
         regs_.pc = static_cast<std::uint16_t>(regs_.pc - 2);
-        cycles_ += bus_->on_m_cycle(regs_.hl(), 5);
-        cycles_ += 5;
+        idle(address, 5);
+        return 21;
     }
+    return 16;
 }
 
-void Z80::block_out(int delta, bool repeat) {
+int Z80::block_out(int delta, bool repeat) {
+    idle(refresh_address(), 1);
     std::uint8_t byte = read8(regs_.hl());
     regs_.b = static_cast<std::uint8_t>(regs_.b - 1);
-    io_out(regs_.bc(), byte);
+    const auto port = regs_.bc();
+    io_out(port, byte);
     regs_.set_hl(static_cast<std::uint16_t>(regs_.hl() + delta));
     std::uint8_t f = sz53_of(regs_.b);
     if (byte & 0x80) {
@@ -503,9 +516,10 @@ void Z80::block_out(int delta, bool repeat) {
     regs_.flags.bits = f;
     if (repeat && regs_.b != 0) {
         regs_.pc = static_cast<std::uint16_t>(regs_.pc - 2);
-        cycles_ += bus_->on_m_cycle(regs_.bc(), 5);
-        cycles_ += 5;
+        idle(port, 5);
+        return 21;
     }
+    return 16;
 }
 
 // ---- Branch helpers ----
@@ -530,6 +544,7 @@ void Z80::call_cond(bool cond) {
     std::uint16_t target = fetch_immediate16();
     regs_.wz = target;
     if (cond) {
+        idle(static_cast<std::uint16_t>(regs_.pc - 1), 1);
         push16(regs_.pc);
         regs_.pc = target;
     }

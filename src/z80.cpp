@@ -1,5 +1,6 @@
 #include <z80f/z80.hpp>
 
+#include <cassert>
 #include <cstdint>
 
 #include "z80f/bus.hpp"
@@ -41,19 +42,36 @@ void Z80::inc_r() {
     regs_.r = static_cast<std::uint8_t>((regs_.r & 0x80) | ((regs_.r + 1) & 0x7F));
 }
 
+void Z80::machine_cycle(std::uint16_t address, int t_states) {
+    const int waits = bus_->on_m_cycle(address, t_states);
+    assert(waits >= 0);
+    cycles_ += static_cast<std::uint64_t>(t_states) + static_cast<std::uint64_t>(waits);
+    instruction_t_states_ += t_states;
+}
+
+void Z80::idle(std::uint16_t address, int t_states) {
+    for (int t = 0; t < t_states; ++t) {
+        machine_cycle(address, 1);
+    }
+}
+
+std::uint16_t Z80::refresh_address() const {
+    return static_cast<std::uint16_t>((regs_.i << 8) | regs_.r);
+}
+
 std::uint8_t Z80::read8(std::uint16_t addr) {
-    cycles_ += bus_->on_m_cycle(addr, 3);
+    machine_cycle(addr, 3);
     return bus_->read_memory(addr);
 }
 
 void Z80::write8(std::uint16_t addr, std::uint8_t value) {
-    cycles_ += bus_->on_m_cycle(addr, 3);
+    machine_cycle(addr, 3);
     bus_->write_memory(addr, value);
 }
 
 std::uint8_t Z80::fetch_opcode() {
     std::uint16_t pc = regs_.pc;
-    cycles_ += bus_->on_m_cycle(pc, 4);
+    machine_cycle(pc, 4);
     std::uint8_t op = bus_->read_memory(pc);
     regs_.pc = static_cast<std::uint16_t>(pc + 1);
     inc_r();
@@ -73,12 +91,12 @@ std::uint16_t Z80::fetch_immediate16() {
 }
 
 std::uint8_t Z80::io_in(std::uint16_t port) {
-    cycles_ += bus_->on_m_cycle(port, 4);
+    machine_cycle(port, 4);
     return bus_->read_io(port);
 }
 
 void Z80::io_out(std::uint16_t port, std::uint8_t value) {
-    cycles_ += bus_->on_m_cycle(port, 4);
+    machine_cycle(port, 4);
     bus_->write_io(port, value);
 }
 
@@ -121,11 +139,10 @@ bool Z80::handle_nmi() {
     regs_.iff2 = regs_.iff1;
     regs_.iff1 = false;
     inc_r();
-    cycles_ += bus_->on_m_cycle(regs_.pc, 5);
+    machine_cycle(regs_.pc, 5);
     push16(regs_.pc);
     regs_.pc = 0x0066;
     regs_.wz = 0x0066;
-    cycles_ += 11;
     return true;
 }
 
@@ -137,10 +154,9 @@ bool Z80::handle_int(bool int_active) {
     regs_.iff1 = false;
     regs_.iff2 = false;
     inc_r();
-    cycles_ += bus_->on_m_cycle(regs_.pc, 7);
+    machine_cycle(regs_.pc, 7);
     std::uint8_t databus = bus_->acknowledge_interrupt();
     push16(regs_.pc);
-    int t = 0;
     switch (regs_.im) {
     case 0: {
         // Execute the data-bus opcode. Most often RST nn → vector to it.
@@ -149,13 +165,11 @@ bool Z80::handle_int(bool int_active) {
                                    : static_cast<std::uint16_t>(0x38);
         regs_.pc = target;
         regs_.wz = target;
-        t = 13;
         break;
     }
     case 1:
         regs_.pc = 0x0038;
         regs_.wz = 0x0038;
-        t = 13;
         break;
     case 2: {
         auto vector_addr = static_cast<std::uint16_t>((regs_.i << 8) | databus);
@@ -163,18 +177,16 @@ bool Z80::handle_int(bool int_active) {
         std::uint8_t hi = read8(static_cast<std::uint16_t>(vector_addr + 1));
         regs_.pc = static_cast<std::uint16_t>((hi << 8) | lo);
         regs_.wz = regs_.pc;
-        t = 19;
         break;
     }
     default:
-        t = 13;
         break;
     }
-    cycles_ += static_cast<std::uint64_t>(t);
     return true;
 }
 
 void Z80::rst(std::uint16_t target) {
+    idle(refresh_address(), 1);
     push16(regs_.pc);
     regs_.pc = target;
     regs_.wz = target;
@@ -182,6 +194,7 @@ void Z80::rst(std::uint16_t target) {
 
 int Z80::step() {
     std::uint64_t start = cycles_;
+    instruction_t_states_ = 0;
 
     // NMI is edge-triggered and always serviced first if pending.
     if (nmi_pending_) {
@@ -201,22 +214,19 @@ int Z80::step() {
         }
     }
 
-    bool const was_ei_pending = regs_.ei_pending;
     regs_.ei_pending = false;
 
     if (regs_.halted) {
         // Single 4-T NOP-like cycle until interrupted.
-        cycles_ += bus_->on_m_cycle(regs_.pc, 4);
+        machine_cycle(regs_.pc, 4);
+        (void)bus_->read_memory(regs_.pc);
         inc_r();
-        cycles_ += 4;
-        // EI right before HALT still clears the one-instruction delay.
-        (void)was_ei_pending;
-        return 4;
+        return static_cast<int>(cycles_ - start);
     }
 
     std::uint8_t op = fetch_opcode();
-    int const t = dispatch_unprefixed(op);
-    cycles_ += static_cast<std::uint64_t>(t);
+    [[maybe_unused]] int const t = dispatch_unprefixed(op);
+    assert(instruction_t_states_ == t);
     return static_cast<int>(cycles_ - start);
 }
 
