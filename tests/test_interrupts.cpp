@@ -1,3 +1,4 @@
+#include <catch2/catch_message.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <z80f/bus.hpp>
 #include <z80f/z80.hpp>
@@ -285,4 +286,71 @@ TEST_CASE("Cycles since reset deltas", "[timing]") {
     cpu.reset();
     REQUIRE(cpu.cycle_counter() == 0);
     REQUIRE(cpu.cycles_since_reset() == 0);
+}
+
+TEST_CASE("Interrupt return resumes after HALT, including address wrap", "[interrupts][halt]") {
+    for (bool const nmi : {false, true}) {
+        for (std::uint16_t const pc : {std::uint16_t{0}, std::uint16_t{0xFFFF}}) {
+            for (std::uint8_t const mode : {0, 1, 2}) {
+                CAPTURE(nmi, pc, mode);
+                TestBus bus;
+                Z80 cpu(bus);
+                auto s = cpu.save_snapshot();
+                s.registers.pc = pc;
+                s.registers.sp = 0x9000;
+                s.registers.im = mode;
+                s.registers.i = 0x40;
+                s.registers.iff1 = true;
+                s.registers.iff2 = true;
+                cpu.load_snapshot(s);
+                bus.memory[pc] = 0x76;
+                bus.memory[0x40FF] = 0x38;
+                bus.memory[0x4100] = 0;
+                bus.memory[nmi ? 0x66 : 0x38] = 0xED;
+                bus.memory[nmi ? 0x67 : 0x39] = 0x45;
+                REQUIRE(cpu.step() == 4);
+                if (nmi) {
+                    cpu.set_nmi_line(true);
+                } else {
+                    cpu.set_int_line(true);
+                }
+                REQUIRE(cpu.step() == (nmi ? 11 : (mode == 2 ? 19 : 13)));
+                REQUIRE_FALSE(cpu.registers().halted);
+                const auto next = static_cast<std::uint16_t>(pc + 1);
+                REQUIRE(bus.memory[0x8FFE] == static_cast<std::uint8_t>(next));
+                REQUIRE(bus.memory[0x8FFF] == static_cast<std::uint8_t>(next >> 8));
+                cpu.set_int_line(false);
+                REQUIRE(cpu.step() == 14);
+                REQUIRE(cpu.registers().pc == next);
+                REQUIRE(cpu.registers().sp == 0x9000);
+            }
+        }
+    }
+}
+
+TEST_CASE("Nested NMIs preserve IFF2 until both RETNs complete", "[interrupts][nmi]") {
+    for (bool const enabled : {false, true}) {
+        TestBus bus;
+        Z80 cpu(bus);
+        auto s = cpu.save_snapshot();
+        s.registers.pc = 0x2000;
+        s.registers.sp = 0x9000;
+        s.registers.iff1 = enabled;
+        s.registers.iff2 = enabled;
+        cpu.load_snapshot(s);
+        bus.memory[0x66] = 0xED;
+        bus.memory[0x67] = 0x45;
+        cpu.set_nmi_line(true);
+        REQUIRE(cpu.step() == 11);
+        cpu.set_nmi_line(false);
+        cpu.set_nmi_line(true);
+        REQUIRE(cpu.step() == 11);
+        REQUIRE(cpu.registers().iff2 == enabled);
+        REQUIRE(cpu.step() == 14);
+        REQUIRE(cpu.step() == 14);
+        REQUIRE(cpu.registers().pc == 0x2000);
+        REQUIRE(cpu.registers().sp == 0x9000);
+        REQUIRE(cpu.registers().iff1 == enabled);
+        REQUIRE(cpu.registers().iff2 == enabled);
+    }
 }

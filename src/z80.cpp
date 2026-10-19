@@ -140,8 +140,10 @@ bool Z80::handle_nmi() {
         return false;
     }
     nmi_pending_ = false;
-    regs_.halted = false;
-    regs_.iff2 = regs_.iff1;
+    if (regs_.halted) {
+        regs_.pc = static_cast<std::uint16_t>(regs_.pc + 1);
+        regs_.halted = false;
+    }
     regs_.q = 0;
     regs_.iff1 = false;
     inc_r();
@@ -156,8 +158,10 @@ bool Z80::handle_int(bool int_active) {
     if (!regs_.iff1 || !int_active) {
         return false;
     }
-    regs_.halted = false;
-    regs_.iff1 = false;
+    if (regs_.halted) {
+        regs_.pc = static_cast<std::uint16_t>(regs_.pc + 1);
+        regs_.halted = false;
+    }
     regs_.q = 0;
     regs_.iff1 = false;
     regs_.iff2 = false;
@@ -217,10 +221,8 @@ int Z80::step() {
         int_pulse_pending_ = false;
     }
 
-    if (int_active && regs_.iff1 && !regs_.ei_pending) {
-        if (handle_int(int_active)) {
-            return static_cast<int>(cycles_ - start);
-        }
+    if (int_active && regs_.iff1 && !regs_.ei_pending && handle_int(int_active)) {
+        return static_cast<int>(cycles_ - start);
     }
 
     regs_.ei_pending = false;
