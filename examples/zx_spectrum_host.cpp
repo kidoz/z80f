@@ -50,7 +50,6 @@ public:
     }
 
     int on_m_cycle(std::uint16_t address, int /*t_states*/) override {
-        return 0;
         // Contended memory: 0x4000..0x7FFF on the 48K machine. A real host
         // would apply a contention pattern derived from the ULA T-state
         // position within the frame. Here we simply count touches as a
@@ -58,6 +57,7 @@ public:
         if (address >= 0x4000 && address <= 0x7FFF) {
             ++contended_accesses;
         }
+        return 0;
     }
 
     std::uint64_t contended_accesses = 0;
